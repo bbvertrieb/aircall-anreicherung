@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aircall-anreicherung",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  // Keine oeffentliche URL: Worker hat nur einen scheduled-Handler.
+  "workers_dev": false,
+  "preview_urls": false,
+  // Variablen (ENABLED, MODE, ...) werden im Cloudflare-Dashboard gepflegt und
+  // beim Deploy NICHT ueberschrieben. Deshalb steht hier bewusst KEIN "vars"-Block:
+  // Werte im Config wuerden die Dashboard-Werte beim Deploy ersetzen.
+  // Fehlt eine Variable, greifen die sicheren Code-Defaults (ENABLED=false, MODE=dryrun).
+  "keep_vars": true,
+  "triggers": {
+    // UTC. Der Worker prueft selbst das Zeitfenster in Europe/Vienna.
+    "crons": ["*/20 19-23,0-3 * * *"]
+  },
+  "observability": { "enabled": true }
+}
