@@ -59,6 +59,8 @@ npm run dryrun -- --limit 20 [--records recA,recB] # schreibt nichts; --limit = 
 npm run once   -- --write --records recA,recB      # schreibt NUR diese (max. 10), Backup vorher
 ```
 
+Ohne `.dev.vars` werden die drei Secrets aus Umgebungsvariablen gelesen (Cloud-Umgebung).
+
 `once` sichert vorher die 5 Schreibfelder nach `reports/backup-<ts>.json` und überspringt Records,
 deren Merge-Status schon gesetzt ist. Die lokalen Befehle ignorieren `ENABLED`/`MODE`/Zeitfenster.
 

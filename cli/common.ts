@@ -1,10 +1,28 @@
 /** Hilfen fuer die lokalen Testbefehle (Node). Secrets aus .dev.vars. */
+import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { Env } from "../src/config"
 
+// Hinter einem HTTPS-Proxy (z. B. Cloud-Umgebung) nutzt Nodes fetch den Proxy nur mit
+// NODE_USE_ENV_PROXY=1 – der muss beim Start gesetzt sein, daher einmal neu starten.
+if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY) {
+  const r = spawnSync(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {
+    stdio: "inherit",
+    env: { ...process.env, NODE_USE_ENV_PROXY: "1", NODE_NO_WARNINGS: "1" },
+  })
+  process.exit(r.status ?? 1)
+}
+
+const SECRETS = ["AIRTABLE_TOKEN", "AIRCALL_API_ID", "AIRCALL_API_TOKEN"] as const
+
+/** Secrets aus .dev.vars, sonst aus Umgebungsvariablen (Cloud-Umgebung). */
 export function loadDevVars(path = ".dev.vars"): Env {
-  if (!existsSync(path)) throw new Error(`${path} fehlt (Vorlage: .dev.vars.example)`)
+  if (!existsSync(path)) {
+    const missing = SECRETS.filter((k) => !process.env[k])
+    if (missing.length) throw new Error(`${path} fehlt und Umgebungsvariablen fehlen: ${missing.join(", ")}`)
+    return Object.fromEntries(SECRETS.map((k) => [k, process.env[k]!])) as unknown as Env
+  }
   const env: Record<string, string> = {}
   for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
     const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line)
