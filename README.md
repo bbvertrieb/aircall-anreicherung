@@ -57,6 +57,7 @@ npm install
 npm run probe  -- --calls 123,456                 # nur lesen → reports/probe-<ts>.csv
 npm run dryrun -- --limit 20 [--records recA,recB] # schreibt nichts; --limit = verarbeitete → reports/dryrun-<ts>.csv/.json
 npm run once   -- --write --records recA,recB      # schreibt NUR diese (max. 10), Backup vorher
+npm run restore -- --backup reports/backup-<ts>.json --records recA,recB  # Rückbau der 5 Felder (max. 10)
 ```
 
 Ohne `.dev.vars` werden die drei Secrets aus Umgebungsvariablen gelesen. Fehlen alle drei und ist
@@ -64,7 +65,9 @@ Ohne `.dev.vars` werden die drei Secrets aus Umgebungsvariablen gelesen. Fehlen 
 `Authorization`-Header – der Proxy hängt die Auth an. Der Worker verlangt die Secrets weiterhin.
 
 `once` sichert vorher die 5 Schreibfelder nach `reports/backup-<ts>.json` und überspringt Records,
-deren Merge-Status schon gesetzt ist. Die lokalen Befehle ignorieren `ENABLED`/`MODE`/Zeitfenster.
+deren Merge-Status schon gesetzt ist.
+`restore` schreibt aus so einem Backup die 5 Felder zurück (ohne typecast, leere Werte leeren das Feld)
+und sichert vorher den aktuellen Stand nach `reports/prerestore-<ts>.json`. Die lokalen Befehle ignorieren `ENABLED`/`MODE`/Zeitfenster.
 
 ## Entwicklung
 

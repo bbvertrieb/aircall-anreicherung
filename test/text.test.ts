@@ -38,6 +38,19 @@ describe("transcriptToText", () => {
   it("Fallback: String content", () => {
     expect(transcriptToText({ transcription: { content: "  Freitext  " } })).toBe("Freitext")
   })
+  it("sortiert nach start_time (gleichzeitiges Sprechen), stabil bei gleicher/fehlender Zeit", () => {
+    const u = [
+      { start_time: 43.74, participant_type: "external", text: "Tschüss" },
+      { start_time: 43.709, participant_type: "internal", text: "Dankeschön" },
+      { participant_type: "internal", text: "ohne Zeit" },
+      { start_time: 50, participant_type: "external", text: "B" },
+      { start_time: 50, participant_type: "internal", text: "A" },
+      { start_time: 1, participant_type: "internal", text: "Anfang" },
+    ]
+    expect(transcriptToText({ transcription: { content: { utterances: u } } })).toBe(
+      "[internal] Anfang\n[internal] Dankeschön\n[internal] ohne Zeit\n[external] Tschüss\n[external] B\n[internal] A"
+    )
+  })
   it("leer / unbekannt", () => {
     expect(transcriptToText(null)).toBe("")
     expect(transcriptToText({ transcription: {} })).toBe("")
