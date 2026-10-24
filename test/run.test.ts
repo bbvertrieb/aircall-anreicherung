@@ -87,4 +87,34 @@ describe("runEnrichment", () => {
       ["rec3", "skip"],
     ])
   })
+
+  it("übersprungene zählen nicht gegen MAX_RECORDS_PER_RUN: weiterblättern bis Limit erreicht", async () => {
+    const calls: Record<string, any> = {}
+    for (let i = 1; i <= 25; i++) calls[String(i)] = i <= 12 ? "transient" : call(i, { duration: 20 })
+    const s = setup(25, { calls })
+    s.airtable.pageSize = 10
+    const { stats, reports } = await runEnrichment(s.deps, { mode: "write", limit: 5 })
+    expect(stats).toMatchObject({ processed: 5, skipped: 12, transientSkips: 12, written: 5, selected: 20, notReached: 3, abortReason: null })
+    expect(s.airtable.pagesLoaded).toBe(2) // Seite 3 wird nicht mehr geladen
+    expect(s.airtable.updates.flat().map((u) => u.id)).toEqual(["rec13", "rec14", "rec15", "rec16", "rec17"])
+    expect(reports.filter((r) => r.plan.kind === "skip")).toHaveLength(12)
+  })
+
+  it("nur übersprungene: alle Seiten bis zum Ende, nichts geschrieben", async () => {
+    const calls = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [String(i + 1), "transient"]))
+    const s = setup(7, { calls })
+    s.airtable.pageSize = 3
+    const { stats } = await runEnrichment(s.deps, { mode: "write", limit: 5 })
+    expect(stats).toMatchObject({ processed: 0, skipped: 7, selected: 7, notReached: 0, written: 0, abortReason: null })
+    expect(s.airtable.pagesLoaded).toBe(3)
+    expect(s.airtable.updates).toEqual([])
+  })
+
+  it("Limit genau am Seitenende: keine weitere Seite laden", async () => {
+    const s = setup(20)
+    s.airtable.pageSize = 10
+    const { stats } = await runEnrichment(s.deps, { mode: "dryrun", limit: 10 })
+    expect(stats).toMatchObject({ processed: 10, selected: 10, notReached: 0 })
+    expect(s.airtable.pagesLoaded).toBe(1)
+  })
 })

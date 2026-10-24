@@ -36,6 +36,9 @@ Secrets (setzt Leo): `wrangler secret put AIRTABLE_TOKEN`, `AIRCALL_API_ID`, `AI
 ## Verarbeitung je Protokoll (Kurzfassung)
 
 Auswahl: `{Aircall Calls}` gefüllt, `{Merge-Status}` leer, älter als 2 h, nach Erstellzeit aufsteigend.
+`MAX_RECORDS_PER_RUN` zählt nur **verarbeitete** Protokolle (Status geplant/geschrieben). Unverändert
+gelassene (z. B. AI noch nicht da, 5xx) zählen als `skipped` im Lauf-Log; der Lauf blättert weiter,
+bis das Limit erreicht, die Auswahl zu Ende oder das Budget aufgebraucht ist.
 
 1. Nummer jeder Zeile ↔ `raw_digits` (Logik aus `powerdialer/src/lib/phone.ts`) und `direction = outbound`,
    sonst nur **prüfen** + Merge-Fehler. Call 404 → **fehler**.
@@ -52,7 +55,7 @@ Auswahl: `{Aircall Calls}` gefüllt, `{Merge-Status}` leer, älter als 2 h, nach
 cp .dev.vars.example .dev.vars          # Secrets eintragen (gitignored)
 npm install
 npm run probe  -- --calls 123,456                 # nur lesen → reports/probe-<ts>.csv
-npm run dryrun -- --limit 20 [--records recA,recB] # schreibt nichts → reports/dryrun-<ts>.csv/.json
+npm run dryrun -- --limit 20 [--records recA,recB] # schreibt nichts; --limit = verarbeitete → reports/dryrun-<ts>.csv/.json
 npm run once   -- --write --records recA,recB      # schreibt NUR diese (max. 10), Backup vorher
 ```
 

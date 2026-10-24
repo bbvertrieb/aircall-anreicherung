@@ -12,8 +12,14 @@ export interface RecordUpdate {
   fields: Record<string, unknown>
 }
 
+export interface CandidatePage {
+  records: ProtokollRecord[]
+  /** Airtable-Cursor fuer die naechste Seite; fehlt = letzte Seite */
+  offset?: string
+}
+
 export interface AirtableApi {
-  listCandidates(limit: number): Promise<ProtokollRecord[]>
+  listPage(offset?: string): Promise<CandidatePage>
   getRecord(id: string): Promise<ProtokollRecord | null>
   updateRecords(updates: RecordUpdate[]): Promise<void>
 }
@@ -37,23 +43,17 @@ export class AirtableClient implements AirtableApi {
     this.throttle = new Throttle(clock, LIMITS.AIRTABLE_MIN_INTERVAL_MS)
   }
 
-  async listCandidates(limit: number): Promise<ProtokollRecord[]> {
-    const out: ProtokollRecord[] = []
-    let offset: string | undefined
-    do {
-      const p = new URLSearchParams()
-      p.set("filterByFormula", SELECT_FORMULA)
-      p.set("sort[0][field]", F.CREATED)
-      p.set("sort[0][direction]", "asc")
-      p.set("pageSize", String(Math.min(100, limit - out.length)))
-      p.set("returnFieldsByFieldId", "true")
-      for (const f of READ_FIELDS) p.append("fields[]", f)
-      if (offset) p.set("offset", offset)
-      const r = await this.request<{ records: ProtokollRecord[]; offset?: string }>(`${TABLE_URL}?${p}`, { method: "GET" }, "read")
-      out.push(...r.records)
-      offset = r.offset
-    } while (offset && out.length < limit)
-    return out.slice(0, limit)
+  /** Eine Seite (max. 100) der Auswahl, nach Erstellzeit aufsteigend. */
+  async listPage(offset?: string): Promise<CandidatePage> {
+    const p = new URLSearchParams()
+    p.set("filterByFormula", SELECT_FORMULA)
+    p.set("sort[0][field]", F.CREATED)
+    p.set("sort[0][direction]", "asc")
+    p.set("pageSize", "100")
+    p.set("returnFieldsByFieldId", "true")
+    for (const f of READ_FIELDS) p.append("fields[]", f)
+    if (offset) p.set("offset", offset)
+    return this.request<CandidatePage>(`${TABLE_URL}?${p}`, { method: "GET" }, "read")
   }
 
   async getRecord(id: string): Promise<ProtokollRecord | null> {

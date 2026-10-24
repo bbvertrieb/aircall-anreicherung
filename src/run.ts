@@ -13,7 +13,7 @@ export interface RunOptions {
   recordIds?: string[]
   /** Records mit bereits gesetztem Merge-Status nicht anfassen (Standard: true). */
   requireEmptyStatus?: boolean
-  /** Wird im write-Modus nach dem Laden und VOR dem ersten Schreiben aufgerufen (Backup). */
+  /** Nur mit recordIds: wird im write-Modus nach dem Laden und VOR dem ersten Schreiben aufgerufen (Backup). */
   beforeWrite?: (records: ProtokollRecord[]) => Promise<void>
 }
 
@@ -34,14 +34,18 @@ export interface RunStats {
   start: string
   end?: string
   mode: "dryrun" | "write"
+  /** Geladene Protokolle (alle Seiten) */
   selected: number
+  /** Verarbeitet = Status geplant/geschrieben; zaehlt gegen MAX_RECORDS_PER_RUN */
   processed: number
   ok: number
   keinGespraech: number
   pruefen: number
   fehler: number
+  /** Unveraendert gelassen (nächster Lauf); zaehlt NICHT gegen das Limit */
   skipped: number
   transientSkips: number
+  /** Geladen, aber wegen Limit/Budget nicht mehr angefasst */
   notReached: number
   written: number
   requestsAirtable: number
@@ -152,66 +156,88 @@ export async function runEnrichment(deps: Deps, opts: RunOptions): Promise<RunRe
     stats.written += batch.length
   }
 
+  /** Ein Protokoll bearbeiten. `false` = Budget erreicht, Lauf beenden. */
+  const handle = async (record: ProtokollRecord): Promise<boolean> => {
+    if (!budget.canStart(LIMITS.RECORD_START_RESERVE_MS, LIMITS.RECORD_START_RESERVE_REQUESTS)) {
+      stats.abortReason = "Budget (Zeit/Subrequests) – Rest im nächsten Lauf"
+      return false
+    }
+    let plan: Plan
+    let fetched: FetchedCall[] = []
+    if ((opts.requireEmptyStatus ?? true) && str(record.fields[F.MERGE_STATUS]).trim()) {
+      plan = { kind: "skip", reason: "Merge-Status bereits gesetzt" }
+    } else if (!str(record.fields[F.AIRCALL_CALLS]).trim()) {
+      plan = { kind: "skip", reason: "Aircall Calls leer" }
+    } else {
+      try {
+        ;({ plan, fetched } = await processRecord(record, aircall, clock.now()))
+      } catch (e) {
+        if (e instanceof BudgetExceeded) {
+          stats.abortReason = `Budget: ${e.message} – Rest im nächsten Lauf`
+          return false
+        }
+        throw e
+      }
+    }
+
+    const report = buildReport(record, plan, fetched)
+    reports.push(report)
+    if (plan.kind === "skip") {
+      stats.skipped++
+      if (plan.reason.startsWith("transient")) stats.transientSkips++
+      return true
+    }
+    stats.processed++
+    if (plan.status === "ok") stats.ok++
+    else if (plan.status === "kein Gespräch") stats.keinGespraech++
+    else if (plan.status === "prüfen") stats.pruefen++
+    else stats.fehler++
+
+    if (opts.mode === "write") {
+      pending.push({ update: { id: record.id, fields: plan.fields }, report })
+      if (pending.length >= LIMITS.AIRTABLE_BATCH) await flush()
+    }
+    return true
+  }
+
   try {
-    let records: ProtokollRecord[]
     if (opts.recordIds?.length) {
-      records = []
+      const records: ProtokollRecord[] = []
       for (const id of opts.recordIds) {
         const r = await airtable.getRecord(id)
         if (r) records.push(r)
         else reports.push(buildReport({ id, createdTime: "", fields: {} }, { kind: "skip", reason: "Record nicht gefunden" }, []))
       }
-    } else {
-      records = await airtable.listCandidates(opts.limit)
-    }
-    stats.selected = records.length
-
-    if (opts.mode === "write" && opts.beforeWrite) await opts.beforeWrite(records)
-
-    for (let i = 0; i < records.length; i++) {
-      const record = records[i]!
-      if (!budget.canStart(LIMITS.RECORD_START_RESERVE_MS, LIMITS.RECORD_START_RESERVE_REQUESTS)) {
-        stats.abortReason = "Budget (Zeit/Subrequests) – Rest im nächsten Lauf"
-        stats.notReached = records.length - i
-        break
-      }
-
-      let plan: Plan
-      let fetched: FetchedCall[] = []
-      if ((opts.requireEmptyStatus ?? true) && str(record.fields[F.MERGE_STATUS]).trim()) {
-        plan = { kind: "skip", reason: "Merge-Status bereits gesetzt" }
-      } else if (!str(record.fields[F.AIRCALL_CALLS]).trim()) {
-        plan = { kind: "skip", reason: "Aircall Calls leer" }
-      } else {
-        try {
-          ;({ plan, fetched } = await processRecord(record, aircall, clock.now()))
-        } catch (e) {
-          if (e instanceof BudgetExceeded) {
-            stats.abortReason = `Budget: ${e.message} – Rest im nächsten Lauf`
-            stats.notReached = records.length - i
-            break
-          }
-          throw e
+      stats.selected = records.length
+      if (opts.mode === "write" && opts.beforeWrite) await opts.beforeWrite(records)
+      for (let i = 0; i < records.length; i++) {
+        if (!(await handle(records[i]!))) {
+          stats.notReached = records.length - i
+          break
         }
       }
-
-      stats.processed++
-      const report = buildReport(record, plan, fetched)
-      reports.push(report)
-      if (plan.kind === "skip") {
-        stats.skipped++
-        if (plan.reason.startsWith("transient")) stats.transientSkips++
-        continue
-      }
-      if (plan.status === "ok") stats.ok++
-      else if (plan.status === "kein Gespräch") stats.keinGespraech++
-      else if (plan.status === "prüfen") stats.pruefen++
-      else stats.fehler++
-
-      if (opts.mode === "write") {
-        pending.push({ update: { id: record.id, fields: plan.fields }, report })
-        if (pending.length >= LIMITS.AIRTABLE_BATCH) await flush()
-      }
+    } else {
+      // Weiterblaettern, bis `limit` Protokolle wirklich verarbeitet sind –
+      // uebersprungene (unveraendert gelassene) zaehlen nicht gegen das Limit.
+      let offset: string | undefined
+      let stop = false
+      do {
+        const page = await airtable.listPage(offset)
+        stats.selected += page.records.length
+        for (let i = 0; i < page.records.length; i++) {
+          if (stats.processed >= opts.limit) {
+            stats.notReached += page.records.length - i
+            stop = true
+            break
+          }
+          if (!(await handle(page.records[i]!))) {
+            stats.notReached += page.records.length - i
+            stop = true
+            break
+          }
+        }
+        offset = page.offset
+      } while (!stop && offset && stats.processed < opts.limit)
     }
   } catch (e) {
     if (e instanceof AuthError) {

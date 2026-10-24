@@ -73,9 +73,14 @@ export class FakeAircall implements AircallApi {
 export class FakeAirtable implements AirtableApi {
   updates: RecordUpdate[][] = []
   constructor(public records: ProtokollRecord[], private budget?: Budget) {}
-  async listCandidates(limit: number) {
+  pageSize = 100
+  pagesLoaded = 0
+  async listPage(offset?: string) {
     this.budget?.take("airtable", "read")
-    return this.records.slice(0, limit)
+    this.pagesLoaded++
+    const from = offset ? Number(offset) : 0
+    const to = from + this.pageSize
+    return { records: this.records.slice(from, to), offset: to < this.records.length ? String(to) : undefined }
   }
   async getRecord(id: string) {
     this.budget?.take("airtable", "read")
