@@ -34,8 +34,9 @@ const TABLE_URL = `${AIRTABLE.API}/${AIRTABLE.BASE_ID}/${AIRTABLE.TABLE_ID}`
 export class AirtableClient implements AirtableApi {
   private throttle: Throttle
 
+  /** token `null` = Auth haengt ein Proxy an (CLI im Cloud-Modus). */
   constructor(
-    private token: string,
+    private token: string | null,
     private budget: Budget,
     private clock: Clock,
     private fetchFn: FetchFn = (u, i) => fetch(u, i)
@@ -89,7 +90,10 @@ export class AirtableClient implements AirtableApi {
       const res = await fetchWithTimeout(
         this.fetchFn,
         url,
-        { ...init, headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${this.token}` } },
+        {
+          ...init,
+          headers: { ...(init.headers as Record<string, string>), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) },
+        },
         LIMITS.HTTP_TIMEOUT_MS
       )
       if (res && res.ok) return (await res.json()) as T

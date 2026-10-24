@@ -69,3 +69,13 @@ describe("AirtableClient", () => {
     expect(s.calls[1]!.at - s.calls[0]!.at).toBe(30_000)
   })
 })
+
+describe("Proxy-Modus (CLI in der Cloud-Umgebung)", () => {
+  it("ohne Secrets setzt keiner der Clients einen Authorization-Header", async () => {
+    const clock = new FakeClock(NOW)
+    const s = seq([json(200, { call: { id: 1 } }), json(200, { records: [] })])
+    await new AircallClient(null, null, budget(clock), clock, s.make(clock)).getCall("1")
+    await new AirtableClient(null, budget(clock), clock, s.make(clock)).listPage()
+    for (const c of s.calls) expect(c.init!.headers as Record<string, string>).not.toHaveProperty("Authorization")
+  })
+})

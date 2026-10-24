@@ -25,17 +25,18 @@ export interface AircallApi {
  */
 export class AircallClient implements AircallApi {
   private throttle: Throttle
-  private auth: string
+  private auth: string | null
 
+  /** apiId/apiToken `null` = Auth haengt ein Proxy an (CLI im Cloud-Modus). */
   constructor(
-    apiId: string,
-    apiToken: string,
+    apiId: string | null,
+    apiToken: string | null,
     private budget: Budget,
     private clock: Clock,
     private fetchFn: FetchFn = (u, i) => fetch(u, i)
   ) {
     this.throttle = new Throttle(clock, LIMITS.AIRCALL_MIN_INTERVAL_MS)
-    this.auth = "Basic " + btoa(`${apiId}:${apiToken}`)
+    this.auth = apiId && apiToken ? "Basic " + btoa(`${apiId}:${apiToken}`) : null
   }
 
   getCall(id: string): Promise<AircallCall | null> {
@@ -58,7 +59,7 @@ export class AircallClient implements AircallApi {
       const res = await fetchWithTimeout(
         this.fetchFn,
         AIRCALL_API + path,
-        { headers: { Authorization: this.auth, Accept: "application/json" } },
+        { headers: { ...(this.auth ? { Authorization: this.auth } : {}), Accept: "application/json" } },
         LIMITS.HTTP_TIMEOUT_MS
       )
       if (res === null) {

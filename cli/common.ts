@@ -16,10 +16,18 @@ if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_US
 
 const SECRETS = ["AIRTABLE_TOKEN", "AIRCALL_API_ID", "AIRCALL_API_TOKEN"] as const
 
-/** Secrets aus .dev.vars, sonst aus Umgebungsvariablen (Cloud-Umgebung). */
-export function loadDevVars(path = ".dev.vars"): Env {
+/**
+ * Secrets aus .dev.vars, sonst aus Umgebungsvariablen. Fehlen alle drei und laeuft ein
+ * HTTPS-Proxy (Cloud-Umgebung mit Network secrets), kommt `null` zurueck: die Clients senden
+ * dann keinen eigenen Authorization-Header, der Proxy haengt die Auth an.
+ */
+export function loadDevVars(path = ".dev.vars"): Env | null {
   if (!existsSync(path)) {
     const missing = SECRETS.filter((k) => !process.env[k])
+    if (missing.length === SECRETS.length && (process.env.HTTPS_PROXY || process.env.https_proxy)) {
+      console.error("Keine Secrets gesetzt – Auth über den HTTPS-Proxy (Cloud-Modus).")
+      return null
+    }
     if (missing.length) throw new Error(`${path} fehlt und Umgebungsvariablen fehlen: ${missing.join(", ")}`)
     return Object.fromEntries(SECRETS.map((k) => [k, process.env[k]!])) as unknown as Env
   }
