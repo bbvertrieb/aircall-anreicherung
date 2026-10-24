@@ -49,7 +49,7 @@ export function transcriptToText(resp: unknown): string {
       ? tr.utterances
       : null
   if (utterances) {
-    return utterances
+    return sortByStartTime(utterances)
       .map((u: any) => {
         const text = String(u?.text ?? "").trim()
         if (!text) return ""
@@ -60,6 +60,23 @@ export function transcriptToText(resp: unknown): string {
   }
   if (typeof tr.content === "string") return tr.content.trim()
   return ""
+}
+
+/**
+ * Aircall liefert die Utterances fast chronologisch; bei gleichzeitigem Sprechen kann eine
+ * spaeter begonnene vor einer frueheren stehen. Stabil nach start_time sortieren; Eintraege
+ * ohne numerische start_time behalten die Position ihres Vorgaengers.
+ */
+function sortByStartTime(utterances: any[]): any[] {
+  let last = -Infinity
+  return utterances
+    .map((u, i) => {
+      const t = Number(u?.start_time)
+      if (u?.start_time != null && Number.isFinite(t)) last = t
+      return { u, i, t: last }
+    })
+    .sort((a, b) => a.t - b.t || a.i - b.i)
+    .map((x) => x.u)
 }
 
 /** summary.content (String). */

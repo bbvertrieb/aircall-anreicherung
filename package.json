@@ -9,6 +9,7 @@
     "probe": "tsx cli/probe.ts",
     "dryrun": "tsx cli/dryrun.ts",
     "once": "tsx cli/once.ts",
+    "restore": "tsx cli/restore.ts",
     "deploy:check": "wrangler deploy --dry-run --outdir dist"
   },
   "devDependencies": {
