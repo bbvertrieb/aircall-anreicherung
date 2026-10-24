@@ -59,7 +59,9 @@ npm run dryrun -- --limit 20 [--records recA,recB] # schreibt nichts; --limit = 
 npm run once   -- --write --records recA,recB      # schreibt NUR diese (max. 10), Backup vorher
 ```
 
-Ohne `.dev.vars` werden die drei Secrets aus Umgebungsvariablen gelesen (Cloud-Umgebung).
+Ohne `.dev.vars` werden die drei Secrets aus Umgebungsvariablen gelesen. Fehlen alle drei und ist
+`HTTPS_PROXY` gesetzt (Cloud-Umgebung mit Network secrets), senden die CLI-Clients keinen eigenen
+`Authorization`-Header – der Proxy hängt die Auth an. Der Worker verlangt die Secrets weiterhin.
 
 `once` sichert vorher die 5 Schreibfelder nach `reports/backup-<ts>.json` und überspringt Records,
 deren Merge-Status schon gesetzt ist. Die lokalen Befehle ignorieren `ENABLED`/`MODE`/Zeitfenster.

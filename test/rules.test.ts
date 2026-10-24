@@ -21,6 +21,19 @@ describe("Status-Regeln", () => {
     })
   })
 
+  it("Summary 404 (keine AI-Assist-Lizenz) -> nur Transkript, AI Summary ungesetzt, kein Merge-Fehler", async () => {
+    const ac = new FakeAircall({ "1": call(1) }, { "1": { transcript: tr("Hallo", "Ja bitte") } })
+    const { plan } = await run(record("rec1", [line(1)]), ac)
+    if (plan.kind !== "write") throw 0
+    expect(plan.fields).toEqual({
+      [F.DURATION]: 120,
+      [F.MERGE_STATUS]: "ok",
+      [F.MERGE_FEHLER]: null,
+      [F.TRANSKRIPT]: "[internal] Hallo\n[external] Ja bitte",
+    })
+    expect(plan.fields).not.toHaveProperty(F.AI_SUMMARY)
+  })
+
   it("mehrere Calls: Dauer = Summe inkl. Klingelzeit, Kopfzeilen nur bei >= 2 Calls mit Inhalt", async () => {
     const t0 = NOW / 1000 - 20 * H
     const ac = new FakeAircall(
