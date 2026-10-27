@@ -41,7 +41,7 @@ gelassene (z. B. AI noch nicht da, 5xx) zählen als `skipped` im Lauf-Log; der L
 bis das Limit erreicht, die Auswahl zu Ende oder das Budget aufgebraucht ist.
 
 1. Nummer jeder Zeile ↔ `raw_digits` (Logik aus `powerdialer/src/lib/phone.ts`) und `direction = outbound`,
-   sonst nur **prüfen** + Merge-Fehler. Call 404 → **fehler**.
+   sonst nur **prüfen** + Merge-Fehler. Call 404 → **fehler** (Leitung oder Nutzer in Aircall gelöscht → Call über die API nicht mehr abrufbar).
 2. AI Summary/Transkript schon befüllt → **prüfen** („Felder bereits befüllt – nicht überschrieben").
 3. Dauer = Summe aller `duration` (inkl. Klingelzeit). Kein Call beantwortet → **kein Gespräch**.
 4. AI nur für beantwortete Calls ≥ 30 s. Ein Call mit Inhalt → Text pur; mehrere →

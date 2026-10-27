@@ -83,7 +83,7 @@ export function precheck(record: ProtokollRecord, parsed: ParsedCalls, fetched: 
   if (missing.length) {
     return statusOnly(
       "fehler",
-      missing.map((f) => `Call ${f.line.callId} bei Aircall nicht gefunden (404)`)
+      missing.map((f) => `Call ${f.line.callId} bei Aircall nicht (mehr) vorhanden (404) – Leitung oder Nutzer vermutlich gelöscht`)
     )
   }
   const mism = lineMismatches(fetched)
