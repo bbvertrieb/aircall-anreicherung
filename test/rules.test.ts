@@ -97,7 +97,7 @@ describe("Status-Regeln", () => {
 
   it("Call 404 -> fehler", async () => {
     const { plan } = await run(record("rec1", [line(1), line(2)]), new FakeAircall({ "1": call(1), "2": null }))
-    expect(plan).toMatchObject({ status: "fehler", notes: ["Call 2 bei Aircall nicht gefunden (404)"] })
+    expect(plan).toMatchObject({ status: "fehler", notes: ["Call 2 bei Aircall nicht (mehr) vorhanden (404) – Leitung oder Nutzer vermutlich gelöscht"] })
   })
 
   it("unlesbare Zeile -> prüfen, ohne Aircall-Request", async () => {
