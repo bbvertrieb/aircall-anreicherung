@@ -13,7 +13,7 @@
   "keep_vars": true,
   "triggers": {
     // UTC. Der Worker prueft selbst das Zeitfenster in Europe/Vienna.
-    "crons": ["*/20 19-23,0-3 * * *"]
+    "crons": ["*/15 16-23,0-4 * * *"]
   },
   "observability": { "enabled": true }
 }
