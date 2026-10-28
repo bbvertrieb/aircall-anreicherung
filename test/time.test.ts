@@ -64,6 +64,40 @@ describe("checkWindow (Europe/Vienna)", () => {
       expect(allowedLocal.has("03:20")).toBe(true)
     }
   })
+  it("Fenster 18:00–06:00 über Mitternacht; Cron */15 16-23,0-4 UTC deckt es in Sommer- und Winterzeit ab", () => {
+    const c = { windowStart: "18:00", windowEnd: "06:00", skipWindows: "02:30-03:15" }
+    const w = (iso: string) => checkWindow(new Date(iso), c)
+    // Winterzeit (UTC+1)
+    expect(w("2026-11-02T16:45:00Z")).toMatchObject({ allowed: false, local: "17:45" })
+    expect(w("2026-11-02T17:00:00Z")).toMatchObject({ allowed: true, local: "18:00" })
+    expect(w("2026-11-02T23:15:00Z")).toMatchObject({ allowed: true, local: "00:15" })
+    expect(w("2026-11-03T04:45:00Z")).toMatchObject({ allowed: true, local: "05:45" })
+    expect(w("2026-11-03T04:45:00Z").msRemaining).toBe(15 * 60_000) // 05:45 -> 06:00
+    expect(w("2026-11-03T05:00:00Z")).toMatchObject({ allowed: false, local: "06:00" })
+    // Sommerzeit (UTC+2)
+    expect(w("2026-07-15T15:45:00Z")).toMatchObject({ allowed: false, local: "17:45" })
+    expect(w("2026-07-15T16:00:00Z")).toMatchObject({ allowed: true, local: "18:00" })
+    expect(w("2026-07-16T03:45:00Z")).toMatchObject({ allowed: true, local: "05:45" })
+    expect(w("2026-07-16T04:00:00Z")).toMatchObject({ allowed: false, local: "06:00" })
+    // Restzeit 18:00 -> Sperrfenster 02:30
+    expect(w("2026-11-02T17:00:00Z").msRemaining).toBe(8.5 * 3600_000)
+
+    const cronHoursUtc = [16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4]
+    for (const day of ["2026-07-15", "2026-12-15"]) {
+      const allowedLocal = new Set<string>()
+      for (const h of cronHoursUtc) {
+        for (const m of [0, 15, 30, 45]) {
+          const base = new Date(`${day}T00:00:00Z`)
+          if (h >= 16) base.setUTCDate(base.getUTCDate() - 1)
+          base.setUTCHours(h, m)
+          const r = checkWindow(base, c)
+          if (r.allowed) allowedLocal.add(r.local)
+        }
+      }
+      for (const t of ["18:00", "23:45", "00:00", "02:15", "03:15", "05:45"]) expect(allowedLocal.has(t)).toBe(true)
+      for (const t of ["02:30", "02:45", "03:00", "17:45", "06:00"]) expect(allowedLocal.has(t)).toBe(false)
+    }
+  })
   it("Variablen: anderes Fenster, keine Sperren, Fehler bei Unsinn", () => {
     const c = { windowStart: "08:00", windowEnd: "18:00", skipWindows: "" }
     expect(checkWindow(new Date("2026-10-20T10:00:00Z"), c)).toMatchObject({ allowed: true, local: "12:00" })

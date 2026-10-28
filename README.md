@@ -24,8 +24,9 @@ Secrets (setzt Leo): `wrangler secret put AIRTABLE_TOKEN`, `AIRCALL_API_ID`, `AI
 
 ## Zeitplan & Schutz
 
-- Cron (UTC) `*/20 19-23,0-3 * * *`; der Worker prüft selbst die Wiener Uhrzeit
-  (Sommer-/Winterzeit) und arbeitet nur 21:00–05:00, nicht 02:30–03:15 („Nachlauf Kunde" 02:47).
+- Cron (UTC) `*/15 16-23,0-4 * * *` – deckt 18:00–06:00 Wien in Sommer- und Winterzeit ab; der Worker
+  prüft selbst die Wiener Uhrzeit und arbeitet nur in `WINDOW_START`–`WINDOW_END` (Default 21:00–05:00,
+  im Dashboard 18:00–06:00), nicht in `SKIP_WINDOWS` (Default 02:30–03:15, „Nachlauf Kunde" 02:47).
 - Je Lauf max. 12 Min und 800 Subrequests; endet außerdem vor Beginn des Sperrfensters/Fensterendes.
   Neue Protokolle werden nur begonnen, wenn ≥ 90 s und ≥ 40 Requests übrig sind → keine Überlappung.
 - Airtable: max. 2 Req/s, Batches à 10, 429 → 30 s warten, max. 3 Versuche, dann Laufende.
