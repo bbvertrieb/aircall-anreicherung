@@ -4,8 +4,10 @@
  *   npm run dryrun-b -- --records rec…,rec…
  * Aircall-Limit teilt sich die Firma: nur abends/am Wochenende laufen lassen.
  */
-import { parseTeilbRanges } from "../src/config"
-import { createDeps } from "../src/factory"
+import { AircallClient } from "../src/aircall"
+import { AirtableClient } from "../src/airtable"
+import { LIMITS, parseTeilbRanges } from "../src/config"
+import { Budget, realClock } from "../src/http"
 import { runTeilB } from "../src/teilbRun"
 import { listArg, loadDevVars, parseArgs, timestamp, writeCsv, writeJson } from "./common"
 import { reportRowB } from "./report-b"
@@ -18,7 +20,15 @@ if (!recordIds.length && !ranges.length) {
   process.exit(1)
 }
 const limit = Number(args.limit ?? (recordIds.length || 20))
-const deps = createDeps(loadDevVars())
+// Lokal: grosszuegigeres Budget als im Worker (Stichproben > 12 Min); Drosselung bleibt gleich.
+const env = loadDevVars()
+const budget = new Budget(realClock, realClock.now() + 3 * 3600_000, 100_000, LIMITS.READ_RESERVE_MS, LIMITS.READ_RESERVE_REQUESTS)
+const deps = {
+  budget,
+  clock: realClock,
+  airtable: new AirtableClient(env?.AIRTABLE_TOKEN ?? null, budget, realClock),
+  aircall: new AircallClient(env?.AIRCALL_API_ID ?? null, env?.AIRCALL_API_TOKEN ?? null, budget, realClock),
+}
 const ts = timestamp()
 
 const { stats, reports } = await runTeilB(deps, { mode: "dryrun", limit, ranges, recordIds, sample: args.sample === true, sampleSlices: args.slices ? Number(args.slices) : undefined })
