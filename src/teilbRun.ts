@@ -6,6 +6,7 @@ import { AirtableAbort, AuthError, Budget, BudgetExceeded, Clock, TransientError
 import { AiContent, Plan, needsAi } from "./rules"
 import { summaryToText, transcriptToText } from "./text"
 import {
+  B2_NOT_FOUND,
   Check,
   CheckId,
   RANGES,
@@ -68,7 +69,7 @@ export interface TeilBStats {
   keinGespraech: number
   pruefen: number
   /** "prüfen" je Grund; ein Protokoll kann mehrere Gruende haben */
-  pruefenGrund: Record<CheckId | "UUID" | "befuellt", number>
+  pruefenGrund: Record<CheckId | "404" | "UUID" | "befuellt", number>
   fehler: number
   skipped: number
   transientSkips: number
@@ -165,7 +166,7 @@ function emptyStats(mode: "dryrun" | "write", ranges: TeilBRange[], now: number)
     ok: 0,
     keinGespraech: 0,
     pruefen: 0,
-    pruefenGrund: { UUID: 0, P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, befuellt: 0 },
+    pruefenGrund: { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, "404": 0, UUID: 0, befuellt: 0 },
     fehler: 0,
     skipped: 0,
     transientSkips: 0,
@@ -273,7 +274,8 @@ export async function runTeilB(deps: TeilBDeps, opts: TeilBOptions): Promise<{ s
       const failed = checks.filter((c) => !c.ok)
       for (const c of failed) stats.pruefenGrund[c.id]++
       if (!failed.length) {
-        if (plan.notes.some((n) => n.includes("UUID ungültig"))) stats.pruefenGrund.UUID++
+        if (plan.notes.includes(B2_NOT_FOUND)) stats.pruefenGrund["404"]++
+        else if (plan.notes.some((n) => n.includes("UUID ungültig"))) stats.pruefenGrund.UUID++
         else stats.pruefenGrund.befuellt++
       }
     }

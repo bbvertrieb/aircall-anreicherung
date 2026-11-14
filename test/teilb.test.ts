@@ -139,9 +139,12 @@ describe("Teil B – Prüfungen", () => {
 describe("Teil B – Schreibplan", () => {
   const ok = (r: ProtokollRecord, c: AircallCall) => runChecks(r, c, routing(), [])
 
-  it("404 -> fehler (Text wie Teil A)", () => {
+  it("404: B1 -> fehler (Text wie Teil A), B2 -> prüfen (alte n8n-Daten nicht verifizierbar)", () => {
     const plan = planB("B1", rec("r"), null, [], null, NOWB)
     expect(plan).toMatchObject({ status: "fehler", notes: ["Call 5001 bei Aircall nicht (mehr) vorhanden (404) – Leitung oder Nutzer vermutlich gelöscht"] })
+    const b2 = planB("B2", rec("r", { created: "2026-07-15T08:30:00.000Z", fields: { [F.DURATION]: 80 } }), null, [], null, NOWB)
+    if (b2.kind !== "write") throw 0
+    expect(b2.fields).toEqual({ [F.MERGE_STATUS]: "prüfen", [F.MERGE_FEHLER]: "B2: Call 404 – alte n8n-Daten nicht verifizierbar" })
   })
   it("B1: wie Teil A für einen Call – Dauer, Summary, Transkript ohne Kopfzeile", () => {
     const r = rec("r")
@@ -250,6 +253,14 @@ describe("runTeilB", () => {
     const s = setup(recs, Object.fromEntries(recs.map((_, i) => [String(7001 + i), null])))
     const { stats } = await runTeilB(s.deps, { mode: "dryrun", limit: 2, ranges: ["B1"] })
     expect(stats).toMatchObject({ processed: 2, fehler: 2, notReached: 1 })
+  })
+
+  it("Statistik: B2-404 zählt als prüfen mit Grund 404", async () => {
+    const juli = rec("recJ", { created: "2026-07-15T08:30:00.000Z" })
+    const s = setup([juli], { "5001": null })
+    const { stats } = await runTeilB(s.deps, { mode: "dryrun", limit: 10, ranges: ["B2"] })
+    expect(stats).toMatchObject({ pruefen: 1, fehler: 0 })
+    expect(stats.pruefenGrund["404"]).toBe(1)
   })
 })
 

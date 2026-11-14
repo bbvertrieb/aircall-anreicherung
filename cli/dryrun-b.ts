@@ -21,7 +21,7 @@ const limit = Number(args.limit ?? (recordIds.length || 20))
 const deps = createDeps(loadDevVars())
 const ts = timestamp()
 
-const { stats, reports } = await runTeilB(deps, { mode: "dryrun", limit, ranges, recordIds, sample: args.sample === true })
+const { stats, reports } = await runTeilB(deps, { mode: "dryrun", limit, ranges, recordIds, sample: args.sample === true, sampleSlices: args.slices ? Number(args.slices) : undefined })
 const csv = writeCsv(`dryrun-b-${ts}.csv`, reports.map(reportRowB))
 const json = writeJson(`dryrun-b-${ts}.json`, { stats, reports })
 console.log(JSON.stringify(stats, null, 2))

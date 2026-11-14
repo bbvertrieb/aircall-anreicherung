@@ -14,6 +14,8 @@ import { truncate } from "./text"
 
 export type TeilBRange = "B1" | "B2"
 
+export const B2_NOT_FOUND = "B2: Call 404 – alte n8n-Daten nicht verifizierbar"
+
 /** Zusaetzliche Felder in PROTOKOLLE (per ID). */
 export const FB = {
   AP_PHONE: "fldiJLD1aN30CYK0S", // AP Telefonnummer (Snapshot, Text)
@@ -184,7 +186,10 @@ export function planB(
   nowMs: number
 ): Plan {
   const uuid = str(record.fields[F.CALL_UUID]).trim()
-  if (!call) return statusOnly("fehler", [notFoundNote(uuid)])
+  if (!call) {
+    // B2: alte n8n-Daten lassen sich ohne Call nicht verifizieren -> pruefen. B1 (noch keine Daten): wie Teil A.
+    return range === "B2" ? statusOnly("prüfen", [B2_NOT_FOUND]) : statusOnly("fehler", [notFoundNote(uuid)])
+  }
   const failed = checks.filter((c) => !c.ok)
   if (failed.length) return statusOnly("prüfen", failed.map((c) => `${range}: ${c.id} ${c.detail}`))
 
