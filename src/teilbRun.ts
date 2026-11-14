@@ -6,6 +6,7 @@ import { AirtableAbort, AuthError, Budget, BudgetExceeded, Clock, TransientError
 import { AiContent, Plan, needsAi } from "./rules"
 import { summaryToText, transcriptToText } from "./text"
 import {
+  B1_NOT_FOUND_OLD_DATA,
   B2_NOT_FOUND,
   Check,
   CheckId,
@@ -274,7 +275,7 @@ export async function runTeilB(deps: TeilBDeps, opts: TeilBOptions): Promise<{ s
       const failed = checks.filter((c) => !c.ok)
       for (const c of failed) stats.pruefenGrund[c.id]++
       if (!failed.length) {
-        if (plan.notes.includes(B2_NOT_FOUND)) stats.pruefenGrund["404"]++
+        if (plan.notes.includes(B2_NOT_FOUND) || plan.notes.includes(B1_NOT_FOUND_OLD_DATA)) stats.pruefenGrund["404"]++
         else stats.pruefenGrund.UUID++
       }
     }

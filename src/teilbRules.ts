@@ -15,6 +15,12 @@ import { truncate } from "./text"
 export type TeilBRange = "B1" | "B2"
 
 export const B2_NOT_FOUND = "B2: Call 404 – alte n8n-Daten nicht verifizierbar"
+export const B1_NOT_FOUND_OLD_DATA = "B1: Call 404 – alte n8n-Daten nicht verifizierbar"
+
+/** Stehen in Dauer/AI Summary/Transkript schon (alte) Daten? */
+export function hasOldData(record: ProtokollRecord): boolean {
+  return [F.DURATION, F.AI_SUMMARY, F.TRANSKRIPT].some((f) => str(record.fields[f]).trim() !== "")
+}
 
 /** Zusaetzliche Felder in PROTOKOLLE (per ID). */
 export const FB = {
@@ -187,15 +193,16 @@ export function planB(
 ): Plan {
   const uuid = str(record.fields[F.CALL_UUID]).trim()
   if (!call) {
-    // B2: alte n8n-Daten lassen sich ohne Call nicht verifizieren -> pruefen. B1 (noch keine Daten): wie Teil A.
-    return range === "B2" ? statusOnly("prüfen", [B2_NOT_FOUND]) : statusOnly("fehler", [notFoundNote(uuid)])
+    // Alte n8n-Daten lassen sich ohne Call nicht verifizieren -> pruefen.
+    // B1 ohne Daten: wie Teil A -> fehler.
+    if (range === "B2") return statusOnly("prüfen", [B2_NOT_FOUND])
+    return hasOldData(record) ? statusOnly("prüfen", [B1_NOT_FOUND_OLD_DATA]) : statusOnly("fehler", [notFoundNote(uuid)])
   }
   const failed = checks.filter((c) => !c.ok)
   if (failed.length) return statusOnly("prüfen", failed.map((c) => `${range}: ${c.id} ${c.detail}`))
 
   if (range === "B1") {
-    const filled = [F.DURATION, F.AI_SUMMARY, F.TRANSKRIPT].filter((f) => str(record.fields[f]).trim() !== "")
-    if (filled.length) {
+    if (hasOldData(record)) {
       // Zuordnung ist geprueft (P1–P5 ok) -> "ok", aber nichts ueberschreiben.
       const notes = ["B1: Felder bereits vorhanden – nichts geschrieben"]
       return { kind: "write", status: "ok", notes, fields: { [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: notes.join("\n") } }

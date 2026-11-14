@@ -139,6 +139,14 @@ describe("Teil B – Prüfungen", () => {
 describe("Teil B – Schreibplan", () => {
   const ok = (r: ProtokollRecord, c: AircallCall) => runChecks(r, c, routing(), [])
 
+  it("404: B1 mit alten Daten -> prüfen; B1 ohne Daten bleibt fehler", () => {
+    for (const fld of [F.DURATION, F.AI_SUMMARY, F.TRANSKRIPT]) {
+      const p = planB("B1", rec("r", { fields: { [fld]: fld === F.DURATION ? 80 : "alt" } }), null, [], null, NOWB)
+      if (p.kind !== "write") throw 0
+      expect(p.fields).toEqual({ [F.MERGE_STATUS]: "prüfen", [F.MERGE_FEHLER]: "B1: Call 404 – alte n8n-Daten nicht verifizierbar" })
+    }
+    expect(planB("B1", rec("r", { fields: { [F.TRANSKRIPT]: "  " } }), null, [], null, NOWB)).toMatchObject({ status: "fehler" })
+  })
   it("404: B1 -> fehler (Text wie Teil A), B2 -> prüfen (alte n8n-Daten nicht verifizierbar)", () => {
     const plan = planB("B1", rec("r"), null, [], null, NOWB)
     expect(plan).toMatchObject({ status: "fehler", notes: ["Call 5001 bei Aircall nicht (mehr) vorhanden (404) – Leitung oder Nutzer vermutlich gelöscht"] })
