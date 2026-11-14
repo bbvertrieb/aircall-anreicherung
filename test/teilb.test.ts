@@ -173,22 +173,33 @@ describe("Teil B – Schreibplan", () => {
     if (plan.kind !== "write") throw 0
     expect(plan.fields).toEqual({ [F.TRANSKRIPT]: "[internal] Hallo", [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: "B2: nur Transkript" })
   })
-  it("B2: Transkript schon befüllt -> prüfen; Prüfung fehlgeschlagen -> prüfen ohne Datenfelder", () => {
+  it("B2: Transkript schon vorhanden + Prüfungen ok -> ok, nichts geschrieben; Prüfung fehlgeschlagen -> prüfen ohne Datenfelder", () => {
     const r = rec("r", { created: "2026-07-15T08:30:00.000Z", fields: { [F.TRANSKRIPT]: "alt" } })
     const c = bcall(1, { started_at: Date.parse("2026-07-15T08:20:00.000Z") / 1000 })
-    expect(planB("B2", r, c, ok(r, c), { transcript: "neu", summary: "" }, NOWB)).toMatchObject({ status: "prüfen" })
+    const p0 = planB("B2", r, c, ok(r, c), { transcript: "neu", summary: "" }, NOWB)
+    if (p0.kind !== "write") throw 0
+    expect(p0.fields).toEqual({ [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: "B2: Transkript bereits vorhanden – nichts geschrieben" })
     const bad = runChecks(r, bcall(1, { raw_digits: "+41 1 2" }), routing(), [])
     const p = planB("B2", r, c, bad, null, NOWB)
     if (p.kind !== "write") throw 0
     expect(p.status).toBe("prüfen")
     expect(Object.keys(p.fields).sort()).toEqual([F.MERGE_FEHLER, F.MERGE_STATUS].sort())
   })
-  it("B2: kein Transkript bei Aircall -> ok mit Hinweis, nichts geschrieben", () => {
-    const r = rec("r", { created: "2026-07-15T08:30:00.000Z" })
-    const c = bcall(1, { started_at: Date.parse("2026-07-15T08:20:00.000Z") / 1000, answered_at: null })
-    const p = planB("B2", r, c, ok(r, c), null, NOWB)
-    if (p.kind !== "write") throw 0
-    expect(p.fields).toEqual({ [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: "B2: nur Transkript – Call nicht angenommen, nichts geschrieben" })
+  it("B2 ohne Transkript: nicht angenommen -> kein Gespräch (Dauer unangetastet); < 30 s / kein Transkript -> ok mit Grund", () => {
+    const r = rec("r", { created: "2026-07-15T08:30:00.000Z", fields: { [F.DURATION]: 40 } })
+    const t0 = Date.parse("2026-07-15T08:20:00.000Z") / 1000
+    const no = bcall(1, { started_at: t0, answered_at: null })
+    const p1 = planB("B2", r, no, ok(r, no), null, NOWB)
+    if (p1.kind !== "write") throw 0
+    expect(p1.fields).toEqual({ [F.MERGE_STATUS]: "kein Gespräch", [F.MERGE_FEHLER]: null })
+    const short = bcall(1, { started_at: t0, duration: 20 })
+    const p2 = planB("B2", r, short, ok(r, short), null, NOWB)
+    if (p2.kind !== "write") throw 0
+    expect(p2.fields).toEqual({ [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: "B2: nur Transkript – Call kürzer als 30 s, nichts geschrieben" })
+    const none = bcall(1, { started_at: t0 })
+    const p3 = planB("B2", r, none, ok(r, none), { transcript: "", summary: "" }, NOWB)
+    if (p3.kind !== "write") throw 0
+    expect(p3.fields).toEqual({ [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: "B2: nur Transkript – kein Transkript bei Aircall, nichts geschrieben" })
   })
 })
 

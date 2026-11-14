@@ -198,8 +198,14 @@ export function planB(
   }
 
   // B2: nur Transkript, nur wenn das Feld leer ist; Duration/AI Summary nie anfassen.
+  // "prüfen" bedeutet hier ausschliesslich zweifelhafte Zuordnung (oben).
   if (str(record.fields[F.TRANSKRIPT]).trim() !== "") {
-    return statusOnly("prüfen", ["B2: Transkript bereits befüllt – nicht überschrieben"])
+    const notes = ["B2: Transkript bereits vorhanden – nichts geschrieben"]
+    return { kind: "write", status: "ok", notes, fields: { [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: notes.join("\n") } }
+  }
+  if (!isAnswered(call)) {
+    // wie Teil A: kein Gespraech, Merge-Fehler leer; Duration bleibt unangetastet (B2)
+    return { kind: "write", status: "kein Gespräch", notes: [], fields: { [F.MERGE_STATUS]: "kein Gespräch", [F.MERGE_FEHLER]: null } }
   }
   const t = truncate(ai?.transcript ?? "")
   if (t.text) {
@@ -212,11 +218,7 @@ export function planB(
       fields: { [F.TRANSKRIPT]: t.text, [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: notes.join("\n") },
     }
   }
-  const why = !isAnswered(call)
-    ? "Call nicht angenommen"
-    : !needsAi(call)
-      ? `Call kürzer als ${LIMITS.AI_MIN_DURATION_S} s`
-      : "kein Transkript bei Aircall"
+  const why = !needsAi(call) ? `Call kürzer als ${LIMITS.AI_MIN_DURATION_S} s` : "kein Transkript bei Aircall"
   const notes = [`B2: nur Transkript – ${why}, nichts geschrieben`]
   return { kind: "write", status: "ok", notes, fields: { [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: notes.join("\n") } }
 }
