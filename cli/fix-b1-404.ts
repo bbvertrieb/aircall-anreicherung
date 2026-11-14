@@ -58,6 +58,15 @@ const rows = hits.map((r) => ({
 }))
 console.log(`Liste: ${writeCsv(`fix-b1-404-${ts}.csv`, rows)}`)
 
+const expect = typeof args.expect === "string" ? Number(args.expect) : null
+if (write && expect !== null && expect !== hits.length) {
+  console.error(`Abbruch: erwartet ${expect}, gefunden ${hits.length} – nichts geschrieben.`)
+  process.exit(1)
+}
+if (write && expect === null) {
+  console.error("Abbruch: --write nur zusammen mit --expect <Anzahl aus dem Dryrun>.")
+  process.exit(1)
+}
 if (write && hits.length) {
   const backup = hits.map((r) => ({ id: r.id, fields: Object.fromEntries(WRITE_FIELDS.map((f) => [f, r.fields[f] ?? null])) }))
   console.log(`Backup: ${writeJson(`backup-fix-b1-404-${ts}.json`, { createdAt: new Date().toISOString(), records: backup })}`)
