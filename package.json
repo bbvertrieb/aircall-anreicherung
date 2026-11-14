@@ -12,6 +12,7 @@
     "restore": "tsx cli/restore.ts",
     "dryrun-b": "tsx cli/dryrun-b.ts",
     "once-b": "tsx cli/once-b.ts",
+    "fix-b1-404": "tsx cli/fix-b1-404.ts",
     "deploy:check": "wrangler deploy --dry-run --outdir dist"
   },
   "devDependencies": {
