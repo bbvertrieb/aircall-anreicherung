@@ -4,6 +4,8 @@ import { Env, LIMITS } from "./config"
 import { Budget, Clock, realClock } from "./http"
 import type { Deps } from "./run"
 
+export type ClientDeps = Deps & { airtable: AirtableClient }
+
 type Secrets = Pick<Env, "AIRTABLE_TOKEN" | "AIRCALL_API_ID" | "AIRCALL_API_TOKEN">
 
 /**
@@ -11,7 +13,7 @@ type Secrets = Pick<Env, "AIRTABLE_TOKEN" | "AIRCALL_API_ID" | "AIRCALL_API_TOKE
  * `env = null`: keine Secrets, kein eigener Authorization-Header – die Auth haengt ein Proxy an
  * (nur CLI in der Cloud-Umgebung; der Worker braucht die Secrets immer).
  */
-export function createDeps(env: Secrets | null, maxRuntimeMs: number = LIMITS.MAX_RUNTIME_MS, clock: Clock = realClock): Deps {
+export function createDeps(env: Secrets | null, maxRuntimeMs: number = LIMITS.MAX_RUNTIME_MS, clock: Clock = realClock): ClientDeps {
   if (env) {
     for (const k of ["AIRTABLE_TOKEN", "AIRCALL_API_ID", "AIRCALL_API_TOKEN"] as const) {
       if (!env[k]) throw new Error(`Secret ${k} fehlt`)

@@ -83,6 +83,10 @@ export interface Env {
   WINDOW_START?: string
   WINDOW_END?: string
   SKIP_WINDOWS?: string
+  /** Teil B: aktive Bereiche, z. B. "B1" oder "B1,B2" (Standard: keiner) */
+  TEILB_RANGES?: string
+  /** Teil B: max. verarbeitete Protokolle je Lauf (Standard 0 = aus) */
+  MAX_TEILB_PER_RUN?: string
 }
 
 export interface Settings {
@@ -92,6 +96,8 @@ export interface Settings {
   windowStart: string
   windowEnd: string
   skipWindows: string
+  teilbRanges: ("B1" | "B2")[]
+  teilbMax: number
 }
 
 /** Sichere Defaults: alles, was nicht exakt passt, faellt auf "aus"/"dryrun". */
@@ -104,5 +110,16 @@ export function readSettings(env: Partial<Env>): Settings {
     windowStart: env.WINDOW_START?.trim() || "21:00",
     windowEnd: env.WINDOW_END?.trim() || "05:00",
     skipWindows: env.SKIP_WINDOWS?.trim() ?? "02:30-03:15",
+    teilbRanges: parseTeilbRanges(env.TEILB_RANGES),
+    teilbMax: Math.max(0, Number.parseInt(env.MAX_TEILB_PER_RUN ?? "", 10) || 0),
   }
+}
+
+/** "B1,B2" -> ["B1","B2"]; Unbekanntes wird ignoriert, Standard: keiner. */
+export function parseTeilbRanges(v: string | undefined): ("B1" | "B2")[] {
+  const out: ("B1" | "B2")[] = []
+  for (const p of (v ?? "").split(",").map((x) => x.trim().toUpperCase())) {
+    if ((p === "B1" || p === "B2") && !out.includes(p)) out.push(p)
+  }
+  return out
 }

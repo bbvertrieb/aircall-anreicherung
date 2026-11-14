@@ -10,6 +10,9 @@ export interface AircallCall {
   started_at?: number | null
   answered_at?: number | null
   ended_at?: number | null
+  /** Leitung (Teil B: Abgleich mit CALLER ROUTING) */
+  number?: { id?: number | string | null; name?: string | null; digits?: string | null } | null
+  user?: { id?: number | string | null; name?: string | null } | null
 }
 
 /** Ergebnis eines GET: `null` = 404 (nicht vorhanden). */
