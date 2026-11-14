@@ -195,7 +195,11 @@ export function planB(
 
   if (range === "B1") {
     const filled = [F.DURATION, F.AI_SUMMARY, F.TRANSKRIPT].filter((f) => str(record.fields[f]).trim() !== "")
-    if (filled.length) return statusOnly("prüfen", ["B1: Felder bereits befüllt – nicht überschrieben"])
+    if (filled.length) {
+      // Zuordnung ist geprueft (P1–P5 ok) -> "ok", aber nichts ueberschreiben.
+      const notes = ["B1: Felder bereits vorhanden – nichts geschrieben"]
+      return { kind: "write", status: "ok", notes, fields: { [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: notes.join("\n") } }
+    }
     const fetched: FetchedCall[] = [{ line: { callId: uuid, number: str(call.raw_digits), iso: "", raw: uuid }, call }]
     const m = new Map<string, AiContent>()
     if (ai) m.set(uuid, ai)

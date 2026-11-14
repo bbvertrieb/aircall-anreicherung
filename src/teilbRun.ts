@@ -69,7 +69,7 @@ export interface TeilBStats {
   keinGespraech: number
   pruefen: number
   /** "prüfen" je Grund; ein Protokoll kann mehrere Gruende haben */
-  pruefenGrund: Record<CheckId | "404" | "UUID" | "befuellt", number>
+  pruefenGrund: Record<CheckId | "404" | "UUID", number>
   fehler: number
   skipped: number
   transientSkips: number
@@ -166,7 +166,7 @@ function emptyStats(mode: "dryrun" | "write", ranges: TeilBRange[], now: number)
     ok: 0,
     keinGespraech: 0,
     pruefen: 0,
-    pruefenGrund: { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, "404": 0, UUID: 0, befuellt: 0 },
+    pruefenGrund: { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, "404": 0, UUID: 0 },
     fehler: 0,
     skipped: 0,
     transientSkips: 0,
@@ -275,8 +275,7 @@ export async function runTeilB(deps: TeilBDeps, opts: TeilBOptions): Promise<{ s
       for (const c of failed) stats.pruefenGrund[c.id]++
       if (!failed.length) {
         if (plan.notes.includes(B2_NOT_FOUND)) stats.pruefenGrund["404"]++
-        else if (plan.notes.some((n) => n.includes("UUID ungültig"))) stats.pruefenGrund.UUID++
-        else stats.pruefenGrund.befuellt++
+        else stats.pruefenGrund.UUID++
       }
     }
     if (opts.mode === "write") {

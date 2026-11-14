@@ -159,15 +159,17 @@ describe("Teil B – Schreibplan", () => {
       [F.TRANSKRIPT]: "[internal] Hallo",
     })
   })
-  it("B1: nicht angenommen -> kein Gespräch; bereits befüllt -> prüfen, nichts überschreiben", () => {
+  it("B1: nicht angenommen -> kein Gespräch; bereits befüllt + Prüfungen ok -> ok, nichts geschrieben", () => {
     const r = rec("r")
     const c = bcall(1, { answered_at: null, duration: 30 })
     expect(planB("B1", r, c, ok(r, c), null, NOWB)).toMatchObject({ status: "kein Gespräch", duration: 30 })
     const filled = rec("f", { fields: { [F.DURATION]: 12 } })
     const p = planB("B1", filled, bcall(1), ok(filled, bcall(1)), { transcript: "x", summary: "y" }, NOWB)
-    expect(p).toMatchObject({ status: "prüfen", notes: ["B1: Felder bereits befüllt – nicht überschrieben"] })
     if (p.kind !== "write") throw 0
-    expect(p.fields).not.toHaveProperty(F.DURATION)
+    expect(p.fields).toEqual({ [F.MERGE_STATUS]: "ok", [F.MERGE_FEHLER]: "B1: Felder bereits vorhanden – nichts geschrieben" })
+    // Prüfung fehlgeschlagen -> weiterhin prüfen (zweifelhafte Zuordnung)
+    const bad = runChecks(filled, bcall(1, { raw_digits: "+49 30 1" }), routing(), [])
+    expect(planB("B1", filled, bcall(1), bad, null, NOWB)).toMatchObject({ status: "prüfen" })
   })
   it("B2: NUR Transkript; Dauer und AI Summary nie angefasst", () => {
     const r = rec("r", { created: "2026-07-15T08:30:00.000Z", fields: { [F.DURATION]: 80, [F.AI_SUMMARY]: "alt (n8n)" } })
