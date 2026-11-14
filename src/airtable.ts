@@ -18,6 +18,19 @@ export interface CandidatePage {
   offset?: string
 }
 
+export interface QueryParams {
+  formula?: string
+  fields?: string[]
+  pageSize?: number
+  offset?: string
+  sortField?: string
+}
+
+/** Zusaetzliche Abfrage fuer Teil B (Teil A nutzt nur AirtableApi). */
+export interface AirtableQueryApi {
+  query(table: string, q: QueryParams): Promise<CandidatePage>
+}
+
 export interface AirtableApi {
   listPage(offset?: string): Promise<CandidatePage>
   getRecord(id: string): Promise<ProtokollRecord | null>
@@ -31,7 +44,7 @@ const TABLE_URL = `${AIRTABLE.API}/${AIRTABLE.BASE_ID}/${AIRTABLE.TABLE_ID}`
  * Felder per ID (returnFieldsByFieldId), KEIN typecast.
  * 429 -> 30 s warten, max. 3 Versuche, danach Lauf beenden.
  */
-export class AirtableClient implements AirtableApi {
+export class AirtableClient implements AirtableApi, AirtableQueryApi {
   private throttle: Throttle
 
   /** token `null` = Auth haengt ein Proxy an (CLI im Cloud-Modus). */
@@ -55,6 +68,21 @@ export class AirtableClient implements AirtableApi {
     for (const f of READ_FIELDS) p.append("fields[]", f)
     if (offset) p.set("offset", offset)
     return this.request<CandidatePage>(`${TABLE_URL}?${p}`, { method: "GET" }, "read")
+  }
+
+  /** Generische Abfrage einer Tabelle (Teil B): Formel, Felder per ID, optional sortiert. */
+  async query(table: string, q: QueryParams): Promise<CandidatePage> {
+    const p = new URLSearchParams()
+    if (q.formula) p.set("filterByFormula", q.formula)
+    p.set("pageSize", String(q.pageSize ?? 100))
+    p.set("returnFieldsByFieldId", "true")
+    if (q.sortField) {
+      p.set("sort[0][field]", q.sortField)
+      p.set("sort[0][direction]", "asc")
+    }
+    for (const f of q.fields ?? []) p.append("fields[]", f)
+    if (q.offset) p.set("offset", q.offset)
+    return this.request<CandidatePage>(`${AIRTABLE.API}/${AIRTABLE.BASE_ID}/${table}?${p}`, { method: "GET" }, "read")
   }
 
   async getRecord(id: string): Promise<ProtokollRecord | null> {

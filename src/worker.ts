@@ -4,7 +4,8 @@
  */
 import { Env, readSettings } from "./config"
 import { createDeps } from "./factory"
-import { runEnrichment } from "./run"
+import { RunStats, runEnrichment } from "./run"
+import { runTeilB } from "./teilbRun"
 import { checkWindow } from "./time"
 
 interface ScheduledEventLike {
@@ -42,6 +43,24 @@ export async function scheduledRun(env: Env, now: Date = new Date()): Promise<vo
   }
   const { stats } = await runEnrichment(deps, { mode: settings.mode, limit: settings.maxRecords })
   log({ local: win.local, ...stats })
+
+  // Teil B (Altbestand) nur, wenn eingeschaltet und Teil A Kapazitaet uebrig laesst.
+  if (settings.teilbMax > 0 && settings.teilbRanges.length > 0) {
+    const reason = teilbBlocked(stats, settings.maxRecords)
+    if (reason) {
+      log({ teil: "B", local: win.local, ranges: settings.teilbRanges, abortReason: reason })
+      return
+    }
+    const b = await runTeilB(deps, { mode: settings.mode, limit: settings.teilbMax, ranges: settings.teilbRanges })
+    log({ local: win.local, ...b.stats })
+  }
+}
+
+/** Teil A hat Vorrang: Teil B nur, wenn Teil A sauber durch ist und sein Limit nicht ausgeschoepft hat. */
+export function teilbBlocked(a: RunStats, maxRecords: number): string | null {
+  if (a.abortReason) return `Teil A beendet mit: ${a.abortReason}`
+  if (a.processed >= maxRecords) return "keine Kapazität: Teil A hat sein Limit ausgeschöpft"
+  return null
 }
 
 export default {

@@ -98,6 +98,23 @@ describe("checkWindow (Europe/Vienna)", () => {
       for (const t of ["02:30", "02:45", "03:00", "17:45", "06:00"]) expect(allowedLocal.has(t)).toBe(false)
     }
   })
+  it("Fenster 00:00–24:00 (fast rund um die Uhr) mit Sperre 02:30–03:15; Cron */15 * * * * deckt alles ab", () => {
+    const c = { windowStart: "00:00", windowEnd: "24:00", skipWindows: "02:30-03:15" }
+    const w = (iso: string) => checkWindow(new Date(iso), c)
+    expect(w("2026-11-14T23:00:00Z")).toMatchObject({ allowed: true, local: "00:00" })
+    expect(w("2026-11-15T10:00:00Z")).toMatchObject({ allowed: true, local: "11:00" })
+    expect(w("2026-11-15T22:45:00Z")).toMatchObject({ allowed: true, local: "23:45" })
+    expect(w("2026-11-15T22:45:00Z").msRemaining).toBe(15 * 60_000) // 23:45 -> 24:00 (> 12 Min, also keine Einschränkung)
+    expect(w("2026-11-15T23:00:00Z").msRemaining).toBe(2.5 * 3600_000) // 00:00 -> 02:30
+    expect(w("2026-11-15T01:30:00Z")).toMatchObject({ allowed: false, local: "02:30" })
+    expect(w("2026-11-15T02:15:00Z")).toMatchObject({ allowed: true, local: "03:15" })
+    // gleiches Fenster ohne "24:00" wäre leer – darum 24:00 als Ende
+    expect(checkWindow(new Date("2026-11-15T10:00:00Z"), { ...c, windowEnd: "00:00" }).allowed).toBe(false)
+    // jeder 15-Min-Slot des Tages ausser der Sperre ist erlaubt
+    let allowed = 0
+    for (let m = 0; m < 24 * 60; m += 15) if (w(new Date(Date.UTC(2026, 10, 15, 0, m)).toISOString()).allowed) allowed++
+    expect(allowed).toBe(96 - 3) // 02:30, 02:45, 03:00 gesperrt
+  })
   it("Variablen: anderes Fenster, keine Sperren, Fehler bei Unsinn", () => {
     const c = { windowStart: "08:00", windowEnd: "18:00", skipWindows: "" }
     expect(checkWindow(new Date("2026-10-20T10:00:00Z"), c)).toMatchObject({ allowed: true, local: "12:00" })

@@ -45,6 +45,10 @@ function statusOnly(status: MergeStatus, notes: string[]): WritePlan {
   }
 }
 
+/** Merge-Fehler bei Call 404 (Teil A und B). */
+export const notFoundNote = (callId: string) =>
+  `Call ${callId} bei Aircall nicht (mehr) vorhanden (404) – Leitung oder Nutzer vermutlich gelöscht`
+
 export function isAnswered(c: AircallCall): boolean {
   return c.answered_at != null && c.answered_at !== 0
 }
@@ -83,7 +87,7 @@ export function precheck(record: ProtokollRecord, parsed: ParsedCalls, fetched: 
   if (missing.length) {
     return statusOnly(
       "fehler",
-      missing.map((f) => `Call ${f.line.callId} bei Aircall nicht (mehr) vorhanden (404) – Leitung oder Nutzer vermutlich gelöscht`)
+      missing.map((f) => notFoundNote(f.line.callId))
     )
   }
   const mism = lineMismatches(fetched)
