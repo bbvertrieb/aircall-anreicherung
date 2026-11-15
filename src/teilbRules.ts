@@ -43,7 +43,8 @@ export const ROUTING = {
  * `from` inklusiv, `to` exklusiv.
  */
 export const RANGES: Record<TeilBRange, { from: string; to: string; label: string }> = {
-  B1: { from: "2026-07-22T22:00:00.000Z", to: "2026-10-22T22:00:00.000Z", label: "23.07.–22.10.2026" },
+  // B1 ab 21.07.: schliesst lueckenlos an B2 an (Entscheidung 15.11., vorher Luecke 21./22.07.)
+  B1: { from: "2026-07-20T22:00:00.000Z", to: "2026-10-22T22:00:00.000Z", label: "21.07.–22.10.2026" },
   B2: { from: "2026-05-31T22:00:00.000Z", to: "2026-07-20T22:00:00.000Z", label: "01.06.–20.07.2026" },
 }
 

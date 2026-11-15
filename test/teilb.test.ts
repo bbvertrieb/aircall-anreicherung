@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { AircallCall } from "../src/aircall"
 import type { AirtableQueryApi, ProtokollRecord, QueryParams } from "../src/airtable"
 import { AIRTABLE, F, readSettings } from "../src/config"
-import { FB, ROUTING, RoutingEntry, checkP1, checkP2, checkP3, isExactDuplicate, planB, rangeOf, runChecks } from "../src/teilbRules"
+import { FB, RANGES, ROUTING, RoutingEntry, checkP1, checkP2, checkP3, isExactDuplicate, planB, rangeOf, runChecks } from "../src/teilbRules"
 import { runTeilB } from "../src/teilbRun"
 import { teilbBlocked } from "../src/worker"
 import { FakeAircall, FakeAirtable, FakeClock, budget, su, tr } from "./helpers"
@@ -77,13 +77,29 @@ const NOWB = Date.UTC(2026, 10, 14, 20, 0)
 
 describe("Teil B – Bereiche", () => {
   it("B1 23.07.–22.10., B2 01.06.–20.07. (Wien), sonst keiner", () => {
-    expect(rangeOf("2026-07-22T21:59:59.000Z")).toBeNull() // 22.07. 23:59:59 Wien
+    expect(rangeOf("2026-07-22T21:59:59.000Z")).toBe("B1") // 22.07. 23:59:59 Wien (seit 15.11. B1)
     expect(rangeOf("2026-07-22T22:00:00.000Z")).toBe("B1") // 23.07. 00:00 Wien
     expect(rangeOf("2026-10-22T21:59:59.000Z")).toBe("B1") // 22.10. 23:59:59 Wien
     expect(rangeOf("2026-10-22T22:00:00.000Z")).toBeNull()
     expect(rangeOf("2026-05-31T22:00:00.000Z")).toBe("B2")
     expect(rangeOf("2026-07-20T21:59:59.000Z")).toBe("B2")
-    expect(rangeOf("2026-07-21T10:00:00.000Z")).toBeNull() // Lücke 21./22.07.
+    expect(rangeOf("2026-07-20T21:59:59.000Z")).toBe("B2") // 20.07. 23:59:59 Wien
+    expect(rangeOf("2026-07-20T22:00:00.000Z")).toBe("B1") // 21.07. 00:00:00 Wien
+    expect(rangeOf("2026-07-21T10:00:00.000Z")).toBe("B1") // frühere Lücke 21./22.07. jetzt B1
+    expect(rangeOf("2026-07-22T21:59:00.000Z")).toBe("B1") // 22.07. 23:59 Wien
+  })
+  it("B2 und B1 liegen lückenlos und ohne Überschneidung aneinander; 01.06.–22.10. jeder Tag hat einen Bereich", () => {
+    expect(RANGES.B2.to).toBe(RANGES.B1.from)
+    for (let t = Date.parse(RANGES.B2.from); t < Date.parse(RANGES.B1.to); t += 3600_000) {
+      expect(rangeOf(new Date(t).toISOString())).not.toBeNull()
+    }
+    // je Zeitpunkt genau ein Bereich
+    const both = (iso: string) => ["B1", "B2"].filter((r) => {
+      const x = Date.parse(iso)
+      return x >= Date.parse(RANGES[r as "B1"].from) && x < Date.parse(RANGES[r as "B1"].to)
+    })
+    expect(both("2026-07-20T22:00:00.000Z")).toEqual(["B1"])
+    expect(both("2026-07-20T21:59:59.999Z")).toEqual(["B2"])
   })
   it("Schalter: Standard aus", () => {
     expect(readSettings({})).toMatchObject({ teilbRanges: [], teilbMax: 0 })
