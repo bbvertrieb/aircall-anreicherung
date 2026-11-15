@@ -76,7 +76,7 @@ class FakeAirtableB extends FakeAirtable implements AirtableQueryApi {
 const NOWB = Date.UTC(2026, 10, 14, 20, 0)
 
 describe("Teil B – Bereiche", () => {
-  it("B1 23.07.–22.10., B2 01.06.–20.07. (Wien), sonst keiner", () => {
+  it("B1 21.07.–22.10., B2 01.06.–20.07. (Wien), sonst keiner", () => {
     expect(rangeOf("2026-07-22T21:59:59.000Z")).toBe("B1") // 22.07. 23:59:59 Wien (seit 15.11. B1)
     expect(rangeOf("2026-07-22T22:00:00.000Z")).toBe("B1") // 23.07. 00:00 Wien
     expect(rangeOf("2026-10-22T21:59:59.000Z")).toBe("B1") // 22.10. 23:59:59 Wien
