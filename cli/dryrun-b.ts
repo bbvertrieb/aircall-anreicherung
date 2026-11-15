@@ -27,7 +27,19 @@ const deps = {
   budget,
   clock: realClock,
   airtable: new AirtableClient(env?.AIRTABLE_TOKEN ?? null, budget, realClock),
-  aircall: new AircallClient(env?.AIRCALL_API_ID ?? null, env?.AIRCALL_API_TOKEN ?? null, budget, realClock),
+  aircall: new AircallClient(env?.AIRCALL_API_ID ?? null, env?.AIRCALL_API_TOKEN ?? null, budget, realClock, aircallFetch()),
+}
+
+/** Optional groesserer Mindestabstand zwischen Aircall-Requests (lokal, z. B. --aircall-gap-ms 1300). */
+function aircallFetch() {
+  const gap = Number(args["aircall-gap-ms"] ?? 0)
+  let last = 0
+  return async (u: string, i?: RequestInit) => {
+    const wait = last + gap - Date.now()
+    if (gap > 0 && wait > 0) await new Promise((r) => setTimeout(r, wait))
+    last = Date.now()
+    return fetch(u, i)
+  }
 }
 const ts = timestamp()
 
